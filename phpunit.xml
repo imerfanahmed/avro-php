@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         verbose="true"
+         stopOnFailure="false">
+    
+    <testsuites>
+        <testsuite name="Unit">
+            <directory suffix="Test.php">./tests</directory>
+        </testsuite>
+        
+        <testsuite name="Trie">
+            <file>./tests/TrieTest.php</file>
+            <file>./tests/TrieNodeTest.php</file>
+        </testsuite>
+        
+        <testsuite name="Parser">
+            <file>./tests/PhoneticParserTest.php</file>
+            <file>./tests/RuleEngineTest.php</file>
+        </testsuite>
+        
+        <testsuite name="Integration">
+            <file>./tests/AvroTest.php</file>
+            <file>./tests/HelpersTest.php</file>
+        </testsuite>
+        
+        <testsuite name="Performance">
+            <file>./tests/PerformanceTest.php</file>
+        </testsuite>
+    </testsuites>
+    
+    <filter>
+        <whitelist processUncoveredFilesFromWhitelist="true">
+            <directory suffix=".php">./src</directory>
+            <exclude>
+                <file>./src/helpers.php</file>
+            </exclude>
+        </whitelist>
+    </filter>
+    
+    <logging>
+        <log type="coverage-html" target="coverage"/>
+        <log type="coverage-text" target="php://stdout" showOnlySummary="true"/>
+    </logging>
+    
+    <php>
+        <env name="APP_ENV" value="testing"/>
+    </php>
+</phpunit>
