@@ -7,17 +7,16 @@ namespace Eru\AvroPhonetic;
  * 
  * Ported from pyAvroPhonetic Python library
  * Original Copyright (C) 2013 Kaustav Das Modak
+ * 
+ * Uses Trie data structure for O(m) pattern lookup where m is pattern length
  */
 class PhoneticParser
 {
-    /** @var array */
-    private $patterns;
+    /** @var Trie Trie for non-rule patterns (fast lookup) */
+    private $nonRuleTrie;
     
-    /** @var array */
-    private $nonRulePatterns;
-    
-    /** @var array */
-    private $rulePatterns;
+    /** @var Trie Trie for rule patterns (fast lookup) */
+    private $ruleTrie;
     
     /** @var string */
     private $vowel;
@@ -36,19 +35,30 @@ class PhoneticParser
      */
     public function __construct(array $rule)
     {
-        $this->patterns = $rule['patterns'];
         $this->vowel = $rule['vowel'];
         $this->consonant = $rule['consonant'];
         $this->numbers = $rule['number'];
         $this->caseSensitive = $rule['casesensitive'];
         
-        // Separate patterns into rule and non-rule patterns
-        $this->nonRulePatterns = array_filter($this->patterns, function($p) {
-            return empty($p['rules']);
-        });
-        $this->rulePatterns = array_filter($this->patterns, function($p) {
-            return !empty($p['rules']);
-        });
+        // Build Trie structures for fast lookup
+        $this->nonRuleTrie = new Trie();
+        $this->ruleTrie = new Trie();
+        
+        foreach ($rule['patterns'] as $pattern) {
+            if (empty($pattern['rules'])) {
+                $this->nonRuleTrie->insert(
+                    $pattern['find'],
+                    $pattern['replace'],
+                    array()
+                );
+            } else {
+                $this->ruleTrie->insert(
+                    $pattern['find'],
+                    $pattern['replace'],
+                    $pattern['rules']
+                );
+            }
+        }
     }
 
     /**
@@ -61,7 +71,7 @@ class PhoneticParser
     {
         // Sanitize text case to meet phonetic comparison standards
         $fixedText = $this->fixStringCase($input);
-        $output = [];
+        $output = array();
         $curEnd = 0;
         $len = mb_strlen($fixedText);
 
@@ -71,14 +81,14 @@ class PhoneticParser
             
             // Check if cursor is at a position that has already been processed
             if ($cur >= $curEnd) {
-                // Try looking in non-rule patterns first
+                // Try looking in non-rule patterns first (using Trie)
                 $match = $this->matchNonRulePatterns($fixedText, $cur);
                 
                 if ($match['matched']) {
                     $output[] = $match['replaced'];
                     $curEnd = $cur + mb_strlen($match['found']);
                 } else {
-                    // Try rule patterns
+                    // Try rule patterns (using Trie)
                     $match = $this->matchRulePatterns($fixedText, $cur);
                     
                     if ($match['matched']) {
@@ -124,7 +134,7 @@ class PhoneticParser
     }
 
     /**
-     * Matches given text at cursor position with non-rule patterns
+     * Matches given text at cursor position with non-rule patterns using Trie
      * 
      * @param string $fixedText
      * @param int $cur
@@ -132,25 +142,26 @@ class PhoneticParser
      */
     private function matchNonRulePatterns($fixedText, $cur)
     {
-        $patterns = $this->exactFindInPattern($fixedText, $cur, $this->nonRulePatterns);
+        // Use Trie for O(m) lookup instead of O(n*m) linear search
+        $pattern = $this->nonRuleTrie->searchLongest($fixedText, $cur);
         
-        if (count($patterns) > 0) {
-            return [
+        if ($pattern !== null) {
+            return array(
                 'matched' => true,
-                'found' => $patterns[0]['find'],
-                'replaced' => $patterns[0]['replace']
-            ];
+                'found' => $pattern['find'],
+                'replaced' => $pattern['replace']
+            );
         }
         
-        return [
+        return array(
             'matched' => false,
             'found' => null,
             'replaced' => mb_substr($fixedText, $cur, 1)
-        ];
+        );
     }
 
     /**
-     * Matches given text at cursor position with rule patterns
+     * Matches given text at cursor position with rule patterns using Trie
      * 
      * @param string $fixedText
      * @param int $cur
@@ -158,49 +169,24 @@ class PhoneticParser
      */
     private function matchRulePatterns($fixedText, $cur)
     {
-        $patterns = $this->exactFindInPattern($fixedText, $cur, $this->rulePatterns);
+        // Use Trie for O(m) lookup instead of O(n*m) linear search
+        $pattern = $this->ruleTrie->searchLongest($fixedText, $cur);
         
-        if (count($patterns) > 0) {
-            return [
+        if ($pattern !== null) {
+            return array(
                 'matched' => true,
-                'found' => $patterns[0]['find'],
-                'replaced' => $patterns[0]['replace'],
-                'rules' => $patterns[0]['rules']
-            ];
+                'found' => $pattern['find'],
+                'replaced' => $pattern['replace'],
+                'rules' => $pattern['rules']
+            );
         }
         
-        return [
+        return array(
             'matched' => false,
             'found' => null,
             'replaced' => mb_substr($fixedText, $cur, 1),
             'rules' => null
-        ];
-    }
-
-    /**
-     * Returns pattern items that match given text at cursor position
-     * 
-     * @param string $fixedText
-     * @param int $cur
-     * @param array $patterns
-     * @return array
-     */
-    private function exactFindInPattern($fixedText, $cur, array $patterns)
-    {
-        $len = mb_strlen($fixedText);
-        $matched = [];
-        
-        foreach ($patterns as $pattern) {
-            $findLen = mb_strlen($pattern['find']);
-            if ($cur + $findLen <= $len) {
-                $chunk = mb_substr($fixedText, $cur, $findLen);
-                if ($pattern['find'] === $chunk) {
-                    $matched[] = $pattern;
-                }
-            }
-        }
-        
-        return $matched;
+        );
     }
 
     /**
