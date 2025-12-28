@@ -268,7 +268,7 @@ This package is open-sourced software licensed under the [GPL-3.0 License](LICEN
 
 - Based on the [Avro Phonetic](https://avro.im) keyboard layout
 - Rule engine ported from [pyAvroPhonetic](https://github.com/kaustavdm/pyAvroPhonetic) by Kaustav Das Modak
-- Developed by [Erfan Ahmed Siam](https://github.com/erusiam)
+- Developed by [Erfan Ahmed Siam](https://github.com/imerfanahmed)
 
 ---
 
